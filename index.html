@@ -33,65 +33,48 @@ body.light {
 body {
     font-family: Arial, sans-serif;
     background: var(--bg);
-    padding: 20px;
+    padding: 30px;
     color: var(--text);
     transition: 0.3s ease;
 }
 
 .container {
     background: var(--container);
-    padding: 20px;
+    padding: 25px;
     border-radius: 12px;
     width: 100%;
     max-width: 1400px;
     margin: auto;
 }
 
-/* Controls */
-.controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
 select, input {
-    padding: 10px;
+    padding: 8px;
     border-radius: 6px;
     border: none;
+    margin-right: 10px;
     background: var(--muted);
     color: var(--text);
-    flex: 1;
-    min-width: 120px;
 }
 
 button {
-    padding: 10px;
+    padding: 6px 10px;
     border-radius: 6px;
     border: none;
     background: var(--primary);
     color: white;
     cursor: pointer;
-    flex: 1;
-    min-width: 120px;
 }
 
 button:hover {
     background: var(--primary-hover);
 }
 
-/* Table */
-.table-wrapper {
-    overflow-x: auto;
-}
-
 table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 6px;
-    margin-top: 10px;
+    margin-top: 20px;
     font-size: 13px;
-    min-width: 700px;
 }
 
 th {
@@ -143,15 +126,15 @@ tbody td:first-child {
     font-size: 12px;
 }
 
-/* Report */
+/* REPORT */
 .report {
-    margin-top: 40px;
-    padding: 20px;
+    margin-top: 50px;
+    padding: 25px;
     border-radius: 14px;
     background: linear-gradient(135deg, var(--report-grad1), var(--report-grad2));
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
     text-align: center;
 }
 
@@ -162,36 +145,18 @@ tbody td:first-child {
 }
 
 .report p {
-    font-size: 22px;
+    font-size: 28px;
     font-weight: bold;
 }
 
-/* Graph */
+/* GRAPH */
 canvas {
+    display: block;
     width: 100%;
-    height: 300px;
-    margin-top: 30px;
+    height: 350px;
+    margin-top: 50px;
     background: var(--muted);
     border-radius: 12px;
-}
-
-/* Mobile Optimization */
-@media (max-width: 768px) {
-    body {
-        padding: 10px;
-    }
-
-    .container {
-        padding: 15px;
-    }
-
-    h1 {
-        font-size: 20px;
-    }
-
-    button, select, input {
-        width: 100%;
-    }
 }
 </style>
 </head>
@@ -200,24 +165,21 @@ canvas {
 
 <div class="container">
 
-<h1 style="text-align:center;">Discipline Tracker</h1>
+<h1><center>Discipline Tracker</center></h1>
 
-<div class="controls">
 <select id="yearSelect"></select>
 <select id="monthSelect"></select>
-<input type="text" id="habitInput" placeholder="New habit">
-<button type="button" onclick="addHabit()">Add Habit</button>
-<button type="button" onclick="toggleTheme()">Toggle Theme</button>
-</div>
 
-<div class="table-wrapper">
+<input type="text" id="habitInput" placeholder="New habit">
+<button onclick="addHabit()">Add Habit</button>
+<button onclick="toggleTheme()">Toggle Theme</button>
+
 <table id="habitTable">
 <thead>
 <tr id="headerRow"><th>Habit</th></tr>
 </thead>
 <tbody></tbody>
 </table>
-</div>
 
 <div class="report">
 <div><h3>🔥 Strong Days</h3><p id="strongDays">0</p></div>
@@ -252,9 +214,6 @@ function initializeSelectors(){
     const yearSelect = document.getElementById("yearSelect");
     const monthSelect = document.getElementById("monthSelect");
 
-    yearSelect.innerHTML="";
-    monthSelect.innerHTML="";
-
     for(let y=2024; y<=2030; y++){
         let option=document.createElement("option");
         option.value=y;
@@ -271,15 +230,15 @@ function initializeSelectors(){
         monthSelect.appendChild(option);
     });
 
-    yearSelect.addEventListener("change", ()=>{
+    yearSelect.onchange = ()=>{
         currentYear=parseInt(yearSelect.value);
         renderTable();
-    });
+    };
 
-    monthSelect.addEventListener("change", ()=>{
+    monthSelect.onchange = ()=>{
         currentMonth=parseInt(monthSelect.value);
         renderTable();
-    });
+    };
 }
 
 function initializeData(){
@@ -315,16 +274,22 @@ function renderTable(){
         let row=document.createElement("tr");
         let habitCell=document.createElement("td");
         habitCell.textContent = habit;
+
+        habitCell.onclick = (e)=>{
+            e.stopPropagation();
+            showMenu(habitCell,r);
+        };
+
         row.appendChild(habitCell);
 
         for(let c=0;c<totalDays;c++){
             let cell=document.createElement("td");
             cell.className=data[currentYear][currentMonth][r][c]?"done":"not-done";
-            cell.addEventListener("click",()=>{
+            cell.onclick=()=>{
                 data[currentYear][currentMonth][r][c]^=1;
                 saveData();
                 renderTable();
-            });
+            };
             row.appendChild(cell);
         }
         tbody.appendChild(row);
@@ -333,12 +298,130 @@ function renderTable(){
     updateReport();
 }
 
+function showMenu(cell,index){
+    document.querySelectorAll(".habit-menu").forEach(m=>m.remove());
+
+    let menu=document.createElement("div");
+    menu.className="habit-menu";
+
+    let editBtn=document.createElement("button");
+    editBtn.textContent="✏ Edit";
+    editBtn.onclick=()=>{
+        let newName=prompt("Edit habit:",habits[index]);
+        if(newName){
+            habits[index]=newName;
+            saveData();
+            renderTable();
+        }
+    };
+
+    let deleteBtn=document.createElement("button");
+    deleteBtn.textContent="🗑 Delete";
+    deleteBtn.onclick=()=>{
+        if(confirm("Delete this habit?")){
+            habits.splice(index,1);
+            data[currentYear][currentMonth].splice(index,1);
+            saveData();
+            renderTable();
+        }
+    };
+
+    menu.appendChild(editBtn);
+    menu.appendChild(deleteBtn);
+    cell.appendChild(menu);
+
+    document.addEventListener("click",()=>menu.remove(),{once:true});
+}
+
+function updateReport(){
+    let totalDays = daysInMonth(currentYear,currentMonth);
+    let totalDone=0, strong=0, weak=0;
+    let currentStreak=0, bestStreak=0;
+    let percentages=[];
+
+    for(let d=0; d<totalDays; d++){
+        let sum=0;
+        habits.forEach((_,h)=>{
+            sum+=data[currentYear][currentMonth][h][d];
+        });
+
+        totalDone+=sum;
+        let percent=(sum/habits.length)*100;
+        percentages.push(percent);
+
+        if(percent===100){
+            strong++;
+            currentStreak++;
+            bestStreak=Math.max(bestStreak,currentStreak);
+        } else {
+            if(percent<50) weak++;
+            currentStreak=0;
+        }
+    }
+
+    document.getElementById("strongDays").textContent=strong;
+    document.getElementById("weakDays").textContent=weak;
+    document.getElementById("completionRate").textContent=
+        ((totalDone/(habits.length*totalDays))*100).toFixed(1)+"%";
+    document.getElementById("currentStreak").textContent=currentStreak;
+    document.getElementById("bestStreak").textContent=bestStreak;
+
+    drawGraph(percentages);
+}
+
+function drawGraph(percentages){
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 350;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    if(percentages.length===0) return;
+
+    const padding=50;
+    const width=canvas.width-padding*2;
+    const height=canvas.height-padding*2;
+    const stepX=width/(percentages.length-1);
+
+    ctx.strokeStyle="rgba(255,255,255,0.1)";
+    for(let i=0;i<=5;i++){
+        let y=padding+i*(height/5);
+        ctx.beginPath();
+        ctx.moveTo(padding,y);
+        ctx.lineTo(canvas.width-padding,y);
+        ctx.stroke();
+    }
+
+    let gradient=ctx.createLinearGradient(0,0,canvas.width,0);
+    gradient.addColorStop(0,"#ff4d6d");
+    gradient.addColorStop(1,"#a855f7");
+
+    ctx.beginPath();
+    percentages.forEach((p,i)=>{
+        let x=padding+i*stepX;
+        let y=canvas.height-padding-(p/100)*height;
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+
+    ctx.strokeStyle=gradient;
+    ctx.lineWidth=4;
+    ctx.stroke();
+
+    percentages.forEach((p,i)=>{
+        let x=padding+i*stepX;
+        let y=canvas.height-padding-(p/100)*height;
+        ctx.beginPath();
+        ctx.arc(x,y,4,0,Math.PI*2);
+        ctx.fillStyle="#ffffff";
+        ctx.fill();
+    });
+}
+
+window.addEventListener("resize",()=>updateReport());
+
 function addHabit(){
     let input=document.getElementById("habitInput");
-    let value=input.value.trim();
-    if(!value) return;
+    if(!input.value) return;
 
-    habits.push(value);
+    habits.push(input.value);
     data[currentYear][currentMonth].push(
         Array(daysInMonth(currentYear,currentMonth)).fill(0)
     );
@@ -348,17 +431,9 @@ function addHabit(){
     renderTable();
 }
 
-document.getElementById("habitInput").addEventListener("keypress", function(e){
-    if(e.key==="Enter"){
-        addHabit();
-    }
-});
-
 function toggleTheme(){
     document.body.classList.toggle("light");
 }
-
-function updateReport(){}
 
 initializeSelectors();
 renderTable();
