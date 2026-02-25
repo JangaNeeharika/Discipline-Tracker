@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Discipline Tracker</title>
+
+<style>
+:root {
+    --bg: #0f172a;
+    --container: #1e293b;
+    --text: #ffffff;
+    --muted: #111827;
+    --primary: #669aed;
+    --primary-hover: #2563eb;
+    --done: #1e8945;
+    --report-grad1: #1e293b;
+    --report-grad2: #334155;
+}
+
+body.light {
+    --bg: #ffffff;
+    --container: #ffffff;
+    --text: #0d0d0d;
+    --muted: #cbd5e1;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --done: #16a34a;
+    --report-grad1: #e2e8f0;
+    --report-grad2: #cbd5e1;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    padding: 30px;
+    color: var(--text);
+    transition: 0.3s ease;
+}
+
+.container {
+    background: var(--container);
+    padding: 25px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 1400px;
+    margin: auto;
+}
+
+select, input {
+    padding: 8px;
+    border-radius: 6px;
+    border: none;
+    margin-right: 10px;
+    background: var(--muted);
+    color: var(--text);
+}
+
+button {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background: var(--primary-hover);
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 6px;
+    margin-top: 20px;
+    font-size: 13px;
+}
+
+th {
+    background: var(--muted);
+    padding: 6px;
+    font-size: 10px;
+}
+
+tbody td:not(:first-child) {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.done {
+    background-color: var(--done);
+    box-shadow: 0 0 8px rgba(34,197,94,0.6);
+}
+
+.not-done {
+    background-color: var(--muted);
+}
+
+tbody td:first-child {
+    border-radius: 8px;
+    padding: 6px;
+    background: var(--muted);
+    position: relative;
+    cursor: pointer;
+}
+
+/* Popup */
+.habit-menu {
+    position: absolute;
+    top: 35px;
+    left: 5px;
+    background: var(--container);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    z-index: 10;
+}
+
+.habit-menu button {
+    display: block;
+    width: 100%;
+    margin-bottom: 5px;
+    font-size: 12px;
+}
+
+/* REPORT */
+.report {
+    margin-top: 50px;
+    padding: 25px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--report-grad1), var(--report-grad2));
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    text-align: center;
+}
+
+.report div {
+    background: rgba(255,255,255,0.05);
+    padding: 10px;
+    border-radius: 12px;
+}
+
+.report p {
+    font-size: 28px;
+    font-weight: bold;
+}
+
+/* GRAPH */
+canvas {
+    display: block;
+    width: 100%;
+    height: 350px;
+    margin-top: 50px;
+    background: var(--muted);
+    border-radius: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1><center>Discipline Tracker</center></h1>
+
+<select id="yearSelect"></select>
+<select id="monthSelect"></select>
+
+<input type="text" id="habitInput" placeholder="New habit">
+<button onclick="addHabit()">Add Habit</button>
+<button onclick="toggleTheme()">Toggle Theme</button>
+
+<table id="habitTable">
+<thead>
+<tr id="headerRow"><th>Habit</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<div class="report">
+<div><h3>🔥 Strong Days</h3><p id="strongDays">0</p></div>
+<div><h3>⚠ Weak Days</h3><p id="weakDays">0</p></div>
+<div><h3>📊 Completion</h3><p id="completionRate">0%</p></div>
+<div><h3>🔥 Current Streak</h3><p id="currentStreak">0</p></div>
+<div><h3>🏆 Best Streak</h3><p id="bestStreak">0</p></div>
+</div>
+
+<canvas id="monthlyGraph"></canvas>
+
+</div>
+
+<script>
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth();
+
+let habits = JSON.parse(localStorage.getItem("habits")) || ["Wake Early","DSA 60min","Exercise"];
+let data = JSON.parse(localStorage.getItem("habitData")) || {};
+
+const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+const canvas = document.getElementById("monthlyGraph");
+const ctx = canvas.getContext("2d");
+
+function daysInMonth(year, month){
+    return new Date(year, month+1, 0).getDate();
+}
+
+function initializeSelectors(){
+    const yearSelect = document.getElementById("yearSelect");
+    const monthSelect = document.getElementById("monthSelect");
+
+    for(let y=2024; y<=2030; y++){
+        let option=document.createElement("option");
+        option.value=y;
+        option.textContent=y;
+        if(y===currentYear) option.selected=true;
+        yearSelect.appendChild(option);
+    }
+
+    monthNames.forEach((m,i)=>{
+        let option=document.createElement("option");
+        option.value=i;
+        option.textContent=m;
+        if(i===currentMonth) option.selected=true;
+        monthSelect.appendChild(option);
+    });
+
+    yearSelect.onchange = ()=>{
+        currentYear=parseInt(yearSelect.value);
+        renderTable();
+    };
+
+    monthSelect.onchange = ()=>{
+        currentMonth=parseInt(monthSelect.value);
+        renderTable();
+    };
+}
+
+function initializeData(){
+    if(!data[currentYear]) data[currentYear]={};
+    if(!data[currentYear][currentMonth]){
+        data[currentYear][currentMonth] =
+            habits.map(()=>Array(daysInMonth(currentYear,currentMonth)).fill(0));
+    }
+}
+
+function saveData(){
+    localStorage.setItem("habits",JSON.stringify(habits));
+    localStorage.setItem("habitData",JSON.stringify(data));
+}
+
+function renderTable(){
+    initializeData();
+    const headerRow=document.getElementById("headerRow");
+    const tbody=document.querySelector("#habitTable tbody");
+
+    headerRow.innerHTML="<th>Habit</th>";
+    tbody.innerHTML="";
+    let totalDays=daysInMonth(currentYear,currentMonth);
+
+    for(let d=1; d<=totalDays; d++){
+        let th=document.createElement("th");
+        let dateObj=new Date(currentYear,currentMonth,d);
+        th.innerHTML=dayNames[dateObj.getDay()]+"<br>"+d;
+        headerRow.appendChild(th);
+    }
+
+    habits.forEach((habit,r)=>{
+        let row=document.createElement("tr");
+        let habitCell=document.createElement("td");
+        habitCell.textContent = habit;
+
+        habitCell.onclick = (e)=>{
+            e.stopPropagation();
+            showMenu(habitCell,r);
+        };
+
+        row.appendChild(habitCell);
+
+        for(let c=0;c<totalDays;c++){
+            let cell=document.createElement("td");
+            cell.className=data[currentYear][currentMonth][r][c]?"done":"not-done";
+            cell.onclick=()=>{
+                data[currentYear][currentMonth][r][c]^=1;
+                saveData();
+                renderTable();
+            };
+            row.appendChild(cell);
+        }
+        tbody.appendChild(row);
+    });
+
+    updateReport();
+}
+
+function showMenu(cell,index){
+    document.querySelectorAll(".habit-menu").forEach(m=>m.remove());
+
+    let menu=document.createElement("div");
+    menu.className="habit-menu";
+
+    let editBtn=document.createElement("button");
+    editBtn.textContent="✏ Edit";
+    editBtn.onclick=()=>{
+        let newName=prompt("Edit habit:",habits[index]);
+        if(newName){
+            habits[index]=newName;
+            saveData();
+            renderTable();
+        }
+    };
+
+    let deleteBtn=document.createElement("button");
+    deleteBtn.textContent="🗑 Delete";
+    deleteBtn.onclick=()=>{
+        if(confirm("Delete this habit?")){
+            habits.splice(index,1);
+            data[currentYear][currentMonth].splice(index,1);
+            saveData();
+            renderTable();
+        }
+    };
+
+    menu.appendChild(editBtn);
+    menu.appendChild(deleteBtn);
+    cell.appendChild(menu);
+
+    document.addEventListener("click",()=>menu.remove(),{once:true});
+}
+
+function updateReport(){
+    let totalDays = daysInMonth(currentYear,currentMonth);
+    let totalDone=0, strong=0, weak=0;
+    let currentStreak=0, bestStreak=0;
+    let percentages=[];
+
+    for(let d=0; d<totalDays; d++){
+        let sum=0;
+        habits.forEach((_,h)=>{
+            sum+=data[currentYear][currentMonth][h][d];
+        });
+
+        totalDone+=sum;
+        let percent=(sum/habits.length)*100;
+        percentages.push(percent);
+
+        if(percent===100){
+            strong++;
+            currentStreak++;
+            bestStreak=Math.max(bestStreak,currentStreak);
+        } else {
+            if(percent<50) weak++;
+            currentStreak=0;
+        }
+    }
+
+    document.getElementById("strongDays").textContent=strong;
+    document.getElementById("weakDays").textContent=weak;
+    document.getElementById("completionRate").textContent=
+        ((totalDone/(habits.length*totalDays))*100).toFixed(1)+"%";
+    document.getElementById("currentStreak").textContent=currentStreak;
+    document.getElementById("bestStreak").textContent=bestStreak;
+
+    drawGraph(percentages);
+}
+
+function drawGraph(percentages){
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 350;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    if(percentages.length===0) return;
+
+    const padding=50;
+    const width=canvas.width-padding*2;
+    const height=canvas.height-padding*2;
+    const stepX=width/(percentages.length-1);
+
+    ctx.strokeStyle="rgba(255,255,255,0.1)";
+    for(let i=0;i<=5;i++){
+        let y=padding+i*(height/5);
+        ctx.beginPath();
+        ctx.moveTo(padding,y);
+        ctx.lineTo(canvas.width-padding,y);
+        ctx.stroke();
+    }
+
+    let gradient=ctx.createLinearGradient(0,0,canvas.width,0);
+    gradient.addColorStop(0,"#ff4d6d");
+    gradient.addColorStop(1,"#a855f7");
+
+    ctx.beginPath();
+    percentages.forEach((p,i)=>{
+        let x=padding+i*stepX;
+        let y=canvas.height-padding-(p/100)*height;
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+
+    ctx.strokeStyle=gradient;
+    ctx.lineWidth=4;
+    ctx.stroke();
+
+    percentages.forEach((p,i)=>{
+        let x=padding+i*stepX;
+        let y=canvas.height-padding-(p/100)*height;
+        ctx.beginPath();
+        ctx.arc(x,y,4,0,Math.PI*2);
+        ctx.fillStyle="#ffffff";
+        ctx.fill();
+    });
+}
+
+window.addEventListener("resize",()=>updateReport());
+
+function addHabit(){
+    let input=document.getElementById("habitInput");
+    if(!input.value) return;
+
+    habits.push(input.value);
+    data[currentYear][currentMonth].push(
+        Array(daysInMonth(currentYear,currentMonth)).fill(0)
+    );
+
+    input.value="";
+    saveData();
+    renderTable();
+}
+
+function toggleTheme(){
+    document.body.classList.toggle("light");
+}
+
+initializeSelectors();
+renderTable();
+</script>
+
+</body>
+</html>
